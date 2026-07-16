@@ -12,15 +12,14 @@ export default {
       
       const app = express();
       
-      // 静的ファイル（Ultravioletのクライアントスクリプトなど）を配信
+      // 1. 静的ファイル（Ultravioletのクライアントスクリプトなど）を配信
       app.use(express.static(uvPath));
       
-      // 自分のサイトのファイル（publicフォルダ）を配信
+      // 2. 自分のサイトのファイル（publicフォルダ）を配信
       app.use(express.static(join(process.cwd(), "public")));
       
-      // すべてのリクエストに対してフロントエンドのindex.htmlを返す
-      // Express 5対応の安全なパス指定
-      app.get("(.*)", (req, res) => {
+      // 3. ルーティング記法を使わず、全てのリクエストを直接index.htmlに返す
+      app.use((req, res) => {
         res.sendFile(join(process.cwd(), "public/index.html"));
       });
       
