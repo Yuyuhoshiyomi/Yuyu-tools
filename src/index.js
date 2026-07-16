@@ -1,30 +1,32 @@
-// Cloudflareの検証を回避するための初期化
-globalThis.__dirname = "/";
-globalThis.__filename = "/index.js";
-
 export default {
   async fetch(request, env, ctx) {
     try {
-      const { uvPath } = await import("@titaniumnetwork-dev/ultraviolet");
-      const express = (await import("express")).default;
-      const { join } = await import("node:path");
-      const { readFileSync } = await import("node:fs");
+      // 1. URLからパスを取得（/index.htmlなど）
+      const url = new URL(request.url);
+      let path = url.pathname === "/" ? "/index.html" : url.pathname;
 
-      const app = express();
+      // 2. public フォルダ内のファイルを探索する（簡易実装）
+      // ※実際はビルドツールがファイルを配置するので、
+      // 動作しない場合は `import` ではなく、CloudflareのKVやAssets機能が本来の解決策ですが、
+      // 現在の環境で最も動く可能性が高いのは「直接読み込み」です。
       
-      // 静的ファイル配信
-      app.use(express.static(uvPath));
-      app.use(express.static(join(process.cwd(), "public")));
+      const { readFileSync } = await import("node:fs");
+      const { join } = await import("node:path");
 
-      // ルーティングを通さず、リクエストが来たらHTMLを直接返す
-      return new Response(readFileSync(join(process.cwd(), "public/index.html"), "utf8"), {
-        headers: { "Content-Type": "text/html; charset=utf-8" }
+      const filePath = join(process.cwd(), "public", path);
+      const fileContent = readFileSync(filePath, "utf8");
+
+      // 3. コンテンツタイプを判定して返す
+      const contentType = path.endsWith(".html") ? "text/html" : 
+                          path.endsWith(".js") ? "application/javascript" : "text/plain";
+
+      return new Response(fileContent, {
+        headers: { "Content-Type": `${contentType}; charset=utf-8` }
       });
 
     } catch (err) {
-      return new Response(`[Worker Runtime Error]\nMessage: ${err.message}\nStack: ${err.stack}`, { 
-        status: 500,
-        headers: { "Content-Type": "text/plain; charset=utf-8" }
+      return new Response(`[Static Loader Error]\nPath: ${new URL(request.url).pathname}\nMessage: ${err.message}`, { 
+        status: 404 
       });
     }
   }
