@@ -1,0 +1,6 @@
+name = "yuyutools0421"
+main = "src/index.js"
+compatibility_date = "2026-07-16"
+
+[observability]
+enabled = true
