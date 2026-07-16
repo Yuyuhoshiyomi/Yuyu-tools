@@ -1,3 +1,7 @@
+// エラーの原因になる __dirname と __filename を事前にダミー定義して回避
+globalThis.__dirname = "/";
+globalThis.__filename = "/index.js";
+
 import * as bareMux from "@mercuryworkshop/bare-mux";
 import { uvPath } from "@titaniumnetwork-dev/ultraviolet";
 import express from "express";
