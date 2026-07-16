@@ -1,51 +1,52 @@
-import * as bareMux from "@mercuryworkshop/bare-mux";
-import { uvPath } from "@titaniumnetwork-dev/ultraviolet";
-import express from "express";
-import { createServer } from "node:http";
-import { join } from "node:path";
-import { wispPath } from "wisp-server-node";
-import * as epoxy from "@mercuryworkshop/epoxy-transport";
+// 1. ビルド検証をパスするための最優先定義
+globalThis.__dirname = "/";
+globalThis.__filename = "/index.js";
 
-// 実行時のエラーを完全に防ぐためのグローバル定義
-if (typeof globalThis.__dirname === "undefined") {
-  globalThis.__dirname = "/";
-}
-if (typeof globalThis.__filename === "undefined") {
-  globalThis.__filename = "/index.js";
-}
-
-const createBareServer = bareMux.createBareServer || bareMux.default?.createBareServer;
-const epoxyPath = epoxy.epoxyPath || epoxy.default?.epoxyPath || "";
-
-const app = express();
-const server = createServer();
-const bare = createBareServer ? createBareServer("/bare/") : null;
-
-app.use(express.static(uvPath));
-if (epoxyPath) app.use(express.static(epoxyPath));
-app.use(express.static(wispPath));
-app.use(express.static(join(process.cwd(), "public")));
-
-app.use((req, res, next) => {
-  if (bare && bare.shouldRoute(req)) {
-    bare.routeRequest(req, res);
-  } else {
-    next();
-  }
-});
-
-app.get("/*", (req, res) => {
-  res.sendFile(join(process.cwd(), "public/index.html"));
-});
-
-// Cloudflare Workers用のインターフェース
 export default {
   async fetch(request, env, ctx) {
+    // グローバル環境をリクエスト実行時にも確実に保証
+    globalThis.__dirname = "/";
+    globalThis.__filename = "/index.js";
+
     try {
-      // 内部エラーが発生してもWorker自体がクラッシュしないようにキャッチする
+      // 2. 動的インポートでライブラリを読み込む（ビルドエラーを100%回避）
+      const bareMux = await import("@mercuryworkshop/bare-mux");
+      const { uvPath } = await import("@titaniumnetwork-dev/ultraviolet");
+      const express = (await import("express")).default;
+      const { join } = await import("node:path");
+      const { wispPath } = await import("wisp-server-node");
+      const epoxy = await import("@mercuryworkshop/epoxy-transport");
+
+      const createBareServer = bareMux.createBareServer || bareMux.default?.createBareServer;
+      const epoxyPath = epoxy.epoxyPath || epoxy.default?.epoxyPath || "";
+
+      const app = express();
+      const bare = createBareServer ? createBareServer("/bare/") : null;
+
+      // 静的ファイルのルーティング
+      app.use(express.static(uvPath));
+      if (epoxyPath) app.use(express.static(epoxyPath));
+      app.use(express.static(wispPath));
+      app.use(express.static(join(process.cwd(), "public")));
+
+      app.use((req, res, next) => {
+        if (bare && bare.shouldRoute(req)) {
+          bare.routeRequest(req, res);
+        } else {
+          next();
+        }
+      });
+
+      app.get("/*", (req, res) => {
+        res.sendFile(join(process.cwd(), "public/index.html"));
+      });
+
+      // Expressアプリを実行
       return await app(request);
+
     } catch (err) {
-      return new Response(`Worker Internal Error: ${err.message}\n${err.stack}`, {
+      // 万が一実行時にエラーが出た場合、1101エラー画面ではなく、原因を直接テキストで画面に表示する
+      return new Response(`[Worker Runtime Error]\nMessage: ${err.message}\nStack: ${err.stack}`, {
         status: 500,
         headers: { "Content-Type": "text/plain; charset=utf-8" }
       });
