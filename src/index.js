@@ -4,11 +4,16 @@ export default {
 
     // 1. プロキシリクエスト (/service/...) の場合
     if (url.pathname.startsWith('/service/')) {
-      // 本来のUltravioletのプロキシ処理をここに記述します。
-      // 現状は動作確認のためメッセージを返しています。
-      return new Response("Ultraviolet プロキシ処理が起動しました。パス: " + url.pathname, {
-        headers: { "Content-Type": "text/plain; charset=utf-8" }
-      });
+      try {
+        // エンコードされたURLを取得してデコード
+        const encodedUrl = url.pathname.replace('/service/', '');
+        const targetUrl = atob(encodedUrl);
+        
+        // ターゲットサイトへリクエストを転送
+        return fetch(targetUrl, request);
+      } catch (e) {
+        return new Response("URLの読み込みに失敗しました: " + e.message, { status: 400 });
+      }
     }
 
     // 2. メイン画面の表示 (index.html)
@@ -19,8 +24,8 @@ export default {
     <meta charset="UTF-8">
     <title>Utopia Proxy</title>
     <style>
-        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f0f0f0; }
-        input { width: 80%; max-width: 500px; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 5px; }
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #1a1a1a; color: white; }
+        input { width: 80%; max-width: 500px; padding: 10px; margin-bottom: 10px; border: 1px solid #444; border-radius: 5px; background: #333; color: white; }
         button { padding: 10px 20px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 5px; }
     </style>
 </head>
@@ -32,7 +37,7 @@ export default {
     <script>
         function go() {
             const input = document.getElementById('url').value;
-            // 入力されたURLをエンコードして /service/ へ転送
+            // URLをBase64でエンコードして転送
             location.href = '/service/' + btoa(input);
         }
     </script>
