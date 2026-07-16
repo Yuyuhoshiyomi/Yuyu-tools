@@ -1,4 +1,4 @@
-name = "yuyutools0421"
+name = "yuyutools"
 main = "src/index.js"
 compatibility_date = "2026-07-16"
 compatibility_flags = [ "nodejs_compat" ]
